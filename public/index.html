@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>URL shortener</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" href="favicon.ico" type="image/x-icon" />
+
+        <style>
+            body { font-family: Candara, "Bitstream Vera Sans", "DejaVu Sans", "Bitstream Vera Sans", "Trebuchet MS", Verdana }
+            a { color:#222; transition: color 0.25s; }
+            a:hover { color: #555;}
+
+            .wrapper {
+                width: 20em;
+                margin: 0 auto;
+            }
+            .title {
+                text-align: center;
+                margin:0 0 0.25em;
+            }
+            .form-shorten {
+                padding: 1em;
+            }
+            .result-field {
+                height: 1em;
+                text-align:center;
+                margin: 0 1em;
+                padding: 1em;
+                opacity: 0;
+                transform: scaleY(0);
+                transform-origin: top left;
+            }
+            .result-field.result-field-display {
+                transition: opacity 0.5s ease, background-color 0.5s ease, transform 0.5s ease;
+                transform: scaleY(1);
+                opacity: 1;
+            }
+            .result-field.result-field-success {
+                background-color: rgb(244, 244, 244);
+                box-shadow: 0px 0px 5px rgb(181, 181, 181) inset;
+            }
+            .result-field.result-field-error {
+                font-size: 0.8em;
+                color: white;
+                background-color: rgb(236, 76, 76);
+            }
+            .label-link {
+                display:none;
+            }
+            .input-link {
+                width: calc(60% - 1em);
+                padding: 0.5em;
+                border-radius: 5px;
+            }
+            .button-submit {
+                width: calc(40% - 1em);
+                padding: 0.75em 1em;
+                background: rgb(34, 117, 168);
+                border: 0;
+                color: white;
+                border-bottom: 1px solid rgb(4, 6, 6);
+                border-right: 1px solid rgb(15, 54, 61);
+                cursor: pointer;
+                border-radius: 0.5em;
+            }
+            .history {
+                padding: 1em;
+                margin: 0 1em;
+                border: 1px solid rgb(86, 153, 194);
+                background: rgb(228, 241, 242);
+                line-height: 1.25em;
+            }
+            .history-list {
+                padding-left:2em;
+                list-style-image:  url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAHCAYAAADEUlfTAAAAJUlEQVR42mNgAILy8vL/DLgASBKnApgkVgXIkhgKiNKJ005s4gDLbCZBiSxfygAAAABJRU5ErkJggg==");
+            }
+            .history-list-item {
+                margin: 1em 0;
+            }
+            .notice-history-no-items {
+                text-align:center;
+            }
+            .no-js .history { display:none; }
+        </style>
+
+    </head>
+    <body>
+
+        <div class="wrapper">
+
+            <h1 class="title">URL shortener</h1>
+
+            <div id="result-field" class="result-field"></div>
+
+            <form id="form-shorten" class="form-shorten" action="/shorten" method="post">
+                <label for="link" class="label-link">URL:</label>
+                <input id="link" name="link" class="input-link" type="url" placeholder="http://example.com" required>
+                <button type="submit" class="button-submit">Shorten</button>
+            </form>
+
+            <div id="history" class="history">
+                <p class="notice-history-no-items">No previously shortened URLs found. Shorten one!</p>
+            </div>
+        </div>
+
+        <script>
+
+            document.documentElement.classList.remove('no-js');
+
+            (function (window, document) {
+
+                'use strict';
+
+                var formShorten = document.getElementById('form-shorten');
+                var historyElem = document.getElementById('history');
+                var xhr = new XMLHttpRequest();
+
+                var storage = (function () {
+
+                    var _storage = window.localStorage;
+
+                    return {
+                        setItem: function (key, value) {
+                            var data = JSON.stringify(value);
+                            _storage.setItem(key, data);
+                        },
+                        getItem: function (key) {
+                            var data = _storage.getItem(key);
+                            return JSON.parse(data);
+                        },
+                        values: function () {
+                            var values = [];
+                            for (var key in _storage) {
+                                if (_storage.hasOwnProperty(key)) {
+                                    values.push(this.getItem(key));
+                                }
+                            }
+                            return values;
+                        },
+                        length: function () { return _storage.length; }
+                    };
+
+                })();
+
+                var resultFieldCtrl = (function () {
+
+                    var resultField = document.getElementById('result-field');
+                    var needsReset = false;
+                    var displayClassName = 'result-field-display';
+                    var successClassName = 'result-field-success';
+                    var errorClassName = 'result-field-error';
+                    var message = {
+                        ERROR: 'error',
+                        SUCCESS: 'success'
+                    };
+
+                    function reset () {
+                        if (needsReset) {
+                            resultField.classList.remove(successClassName, errorClassName, displayClassName);
+                            resultField.innerHTML = '';
+                            needsReset = false;
+                        }
+                    }
+
+                    function display (text, type) {
+                        var stateClassName = (type === message.ERROR) ? errorClassName : successClassName;
+                        resultField.classList.add(stateClassName, displayClassName);
+                        resultField.innerHTML = text;
+                        needsReset = true;
+                    }
+
+                    return {
+                        reset: reset,
+                        display: display,
+                        message: message
+                    };
+
+                })();
+
+                var renderShortUrl = function (shortUrlId) {
+                    var shortUrl = [ window.location.host, '/', shortUrlId ].join('');
+                    return '<a href="/' +shortUrlId+ '" target="_blank">' +shortUrl+ '</a>';
+                };
+
+                var handleShortenFormSubmit = function (url, res) {
+
+                    switch (xhr.status) {
+                        case 200:
+                            var shortUrlId = xhr.response;
+                            var data = { id: shortUrlId, ts: new Date().getTime() };
+                            resultFieldCtrl.display(renderShortUrl(shortUrlId));
+                            storage.setItem(url, data);
+                            break;
+                        default:
+                            resultFieldCtrl.display('Sorry, short URL not allowed for this domain.', resultFieldCtrl.message.ERROR);
+                            break;
+                    }
+
+                };
+
+                var onShortenFormSubmit = function (event) {
+                    var url = formShorten.elements.link.value;
+                    var shortUrlData = storage.getItem(url);
+                    event.preventDefault();
+
+                    if (shortUrlData) return resultFieldCtrl.display(renderShortUrl(shortUrlData.id));
+
+                    resultFieldCtrl.reset();
+                    xhr.onload = handleShortenFormSubmit.bind(null, url);
+                    xhr.open('POST', '/shorten', true);
+                    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                    xhr.send('link=' + url);
+                };
+
+                var fragment = document.createDocumentFragment();
+                var ul = document.createElement('ul');
+                var items = storage.values().sort(function (a, b) {
+                    return b.ts - a.ts;
+                });
+
+                var i, length, li;
+                for (i = 0, length = items.length; i < length; i++) {
+                    li = document.createElement('li');
+                    li.classList.add('history-list-item');
+                    li.innerHTML = renderShortUrl(items[i].id);
+                    ul.appendChild(li);
+                }
+
+                if (storage.length()) historyElem.innerHTML = '';
+
+                ul.classList.add('history-list');
+                fragment.appendChild(ul);
+                historyElem.appendChild(fragment.cloneNode(true));
+
+                formShorten.addEventListener('submit', onShortenFormSubmit, false);
+
+            })(window, document);
+
+        </script>
+
+    </body>
+</html>
