@@ -1,15 +1,19 @@
 {
   "name": "url-shortener",
   "version": "1.0.0",
-  "description": "",
+  "description": "Simple prototype of a URL shortening service",
   "main": "index.js",
   "scripts": {
     "test": "NODE_ENV=test mocha --reporter spec",
     "jshint": "jshint --extract=auto public/index.html lib/**",
-    "serve": " opn http://localhost:9000/ && node ."
+    "serve": "opn http://localhost:9000/ && node ."
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Marko Raatikka",
+  "repository" : {
+    "type" : "git",
+    "url" : "git@github.com:mmrko/url-shortener.git"
+  },
+  "license": "MIT",
   "devDependencies": {
     "chai": "^1.10.0",
     "jshint": "^2.6.0",
