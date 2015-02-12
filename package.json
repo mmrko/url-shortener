@@ -22,7 +22,7 @@
     "sinon": "^1.12.2"
   },
   "dependencies": {
-    "6to5": "^3.4.1",
+    "6to5": "^3.6.0",
     "chalk": "^0.5.1",
     "finalhandler": "^0.3.3",
     "serve-static": "^1.8.1",
