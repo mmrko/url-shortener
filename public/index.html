@@ -121,6 +121,8 @@
 
                 /**
                  * Wraps LocalStorage
+                 *
+                 * @TODO: namespace storage to avoid polluting LocalStorage
                  */
                 var storage = (function () {
 
@@ -190,9 +192,14 @@
                 /**
                  * Returns an HTML string for the short URL to be displayed
                  */
-                var renderShortUrl = function (shortUrlId) {
-                    var shortUrl = [ window.location.host, '/', shortUrlId ].join('');
-                    return '<a href="/' +shortUrlId+ '" target="_blank">' +shortUrl+ '</a>';
+                var renderShortUrl = function (shortUrl) {
+                    var url = [ window.location.host, '/', shortUrl.id ].join('');
+                    // If we had a persistent storage, we'd use shortUrl.id here instead.
+                    // However, now that the storage is reset whenever the server is restarted
+                    // we lose the history information. Thus, we'll embed the old URL infromation
+                    // in the href attribute to meet the server halfway.
+                    var href = shortUrl.url;
+                    return '<a href="' +href+ '" target="_blank">' +url+ '</a>';
                 };
 
                 var handleShortenFormSubmit = function (url, res) {
@@ -200,9 +207,9 @@
                     switch (xhr.status) {
                         case 200:
                             var shortUrlId = xhr.response;
-                            var data = { id: shortUrlId, ts: new Date().getTime() };
-                            resultFieldCtrl.display(renderShortUrl(shortUrlId));
-                            storage.setItem(url, data);
+                            var shortUrl = { url: url, id: shortUrlId, ts: new Date().getTime() };
+                            resultFieldCtrl.display(renderShortUrl(shortUrl));
+                            storage.setItem(url, shortUrl);
                             break;
                         default:
                             resultFieldCtrl.display('Sorry, short URL not allowed for this domain.', resultFieldCtrl.message.ERROR);
@@ -220,11 +227,11 @@
 
                     var form = this;
                     var url = form.elements.link.value;
-                    var shortUrlData = storage.getItem(url);
+                    var shortUrl = storage.getItem(url);
 
-                    if (shortUrlData) {
-                        var shortUrlHtmlStr = renderShortUrl(shortUrlData.id);
-                        return resultFieldCtrl.display(shortUrlElemStr);
+                    if (shortUrl) {
+                        var shortUrlHtmlStr = renderShortUrl(shortUrl);
+                        return resultFieldCtrl.display(shortUrlHtmlStr);
                     }
 
                     resultFieldCtrl.reset();
@@ -244,9 +251,10 @@
                     var i, length, li;
 
                     for (i = 0, length = items.length; i < length; i++) {
+                        var item = items[i];
                         li = document.createElement('li');
                         li.classList.add('history-list-item');
-                        li.innerHTML = renderShortUrl(items[i].id);
+                        li.innerHTML = renderShortUrl(item);
                         ul.appendChild(li);
                     }
 
