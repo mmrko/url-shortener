@@ -13,22 +13,7 @@ var config = require('../lib/config');
 
 describe('server', function () {
 
-    var queryParams = {
-        link: 'http://foo.bar/baz'
-    };
-
-    var queryParamsStr = querystring.stringify(queryParams);
-
-    var shortenOpts = {
-        hostname: config.hostname,
-        port: config.serverPort,
-        path: '/shorten',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Content-Length': queryParamsStr.length
-        }
-    };
+    var queryParams, queryParamsStr, shortenOpts;
 
     before (function () {
         server.listen(config.serverPort, config.hostname);
@@ -39,6 +24,23 @@ describe('server', function () {
     });
 
     beforeEach(function () {
+
+        queryParams = {
+            link: 'http://foo.bar/baz'
+        };
+
+        queryParamsStr = querystring.stringify(queryParams);
+
+        shortenOpts = {
+            hostname: config.hostname,
+            port: config.serverPort,
+            path: '/shorten',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        };
+
         urlStore.clear();
         sinon.spy(shortId, 'generate');
     });
@@ -131,6 +133,24 @@ describe('server', function () {
             assert.equal(res.statusCode, 404);
             done();
         });
+
+    });
+
+    it ('should return 403 on a blacklisted URL', function (done) {
+
+        var blacklistedDomain = config.domainBlackist[0];
+
+        var req = http.request(shortenOpts, function (res) {
+
+            assert.equal(res.statusCode, 403);
+            done();
+
+        });
+
+        assert.isString(blacklistedDomain);
+
+        req.write(querystring.stringify({ link: blacklistedDomain }));
+        req.end();
 
     });
 
