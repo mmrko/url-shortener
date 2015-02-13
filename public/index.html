@@ -16,6 +16,9 @@
             a { color:#222; transition: color 0.25s; }
             a:hover { color: #555;}
 
+            .notice {
+                text-align:center;
+            }
             .wrapper {
                 width: 20em;
                 margin: 0 auto;
@@ -83,9 +86,6 @@
             .history-list-item {
                 margin: 1em 0;
             }
-            .notice-history-no-items {
-                text-align:center;
-            }
             .no-js .history { display:none; }
         </style>
 
@@ -105,7 +105,7 @@
             </form>
 
             <div id="history" class="history">
-                <p class="notice-history-no-items">No previously shortened URLs found. Shorten one!</p>
+                <p class="notice">No previously shortened URLs found. Shorten one!</p>
             </div>
         </div>
 
@@ -117,10 +117,11 @@
 
                 'use strict';
 
-                var formShorten = document.getElementById('form-shorten');
-                var historyElem = document.getElementById('history');
                 var xhr = new XMLHttpRequest();
 
+                /**
+                 * Wraps LocalStorage
+                 */
                 var storage = (function () {
 
                     var _storage = window.localStorage;
@@ -148,6 +149,9 @@
 
                 })();
 
+                /**
+                 * Controls hte result field display
+                 */
                 var resultFieldCtrl = (function () {
 
                     var resultField = document.getElementById('result-field');
@@ -183,6 +187,9 @@
 
                 })();
 
+                /**
+                 * Returns an HTML string for the short URL to be displayed
+                 */
                 var renderShortUrl = function (shortUrlId) {
                     var shortUrl = [ window.location.host, '/', shortUrlId ].join('');
                     return '<a href="/' +shortUrlId+ '" target="_blank">' +shortUrl+ '</a>';
@@ -204,12 +211,21 @@
 
                 };
 
+                /**
+                 * Form submission handler
+                 */
                 var onShortenFormSubmit = function (event) {
-                    var url = formShorten.elements.link.value;
-                    var shortUrlData = storage.getItem(url);
+
                     event.preventDefault();
 
-                    if (shortUrlData) return resultFieldCtrl.display(renderShortUrl(shortUrlData.id));
+                    var form = this;
+                    var url = form.elements.link.value;
+                    var shortUrlData = storage.getItem(url);
+
+                    if (shortUrlData) {
+                        var shortUrlHtmlStr = renderShortUrl(shortUrlData.id);
+                        return resultFieldCtrl.display(shortUrlElemStr);
+                    }
 
                     resultFieldCtrl.reset();
                     xhr.onload = handleShortenFormSubmit.bind(null, url);
@@ -218,27 +234,32 @@
                     xhr.send('link=' + url);
                 };
 
-                var fragment = document.createDocumentFragment();
-                var ul = document.createElement('ul');
-                var items = storage.values().sort(function (a, b) {
-                    return b.ts - a.ts;
-                });
+                /**
+                 * Populates the HTML with short URL history from localStorage
+                 */
+                function populateHistory(historyElem) {
+                    var fragment = document.createDocumentFragment();
+                    var ul = document.createElement('ul');
+                    var items = storage.values().sort(function (a, b) { return b.ts - a.ts; });
+                    var i, length, li;
 
-                var i, length, li;
-                for (i = 0, length = items.length; i < length; i++) {
-                    li = document.createElement('li');
-                    li.classList.add('history-list-item');
-                    li.innerHTML = renderShortUrl(items[i].id);
-                    ul.appendChild(li);
+                    for (i = 0, length = items.length; i < length; i++) {
+                        li = document.createElement('li');
+                        li.classList.add('history-list-item');
+                        li.innerHTML = renderShortUrl(items[i].id);
+                        ul.appendChild(li);
+                    }
+
+                    if (storage.length()) historyElem.innerHTML = '<h4 style="margin:0">Previously shortened:</h4>';
+
+                    ul.classList.add('history-list');
+                    fragment.appendChild(ul);
+                    historyElem.appendChild(fragment.cloneNode(true));
                 }
 
-                if (storage.length()) historyElem.innerHTML = '<h4 style="margin:0">Previously shortened:</h4>';
+                populateHistory(document.getElementById('history'));
 
-                ul.classList.add('history-list');
-                fragment.appendChild(ul);
-                historyElem.appendChild(fragment.cloneNode(true));
-
-                formShorten.addEventListener('submit', onShortenFormSubmit, false);
+                document.getElementById('form-shorten').addEventListener('submit', onShortenFormSubmit, false);
 
             })(window, document);
 
